@@ -1,14 +1,23 @@
+from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.http import HttpResponse
 from djoser.views import UserViewSet
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
+from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .filters import RecipeFilter, IngredientFilter
 from .permissions import IsOwnerOrAdminOrReadOnly
-from .serializers import *
+from .serializers import (RecipeSerializer, RecipeMinifiedSerializer,
+                          CustomUserSerializer, IngredientSerializer,
+                          TagSerializer, FollowSerializer, FolloweeSerializer,
+                          BookmarkSerializer, ShoppingListSerializer)
+
+from .models import (Ingredient, Recipe, Tag, Follow, Bookmark, ShoppingList)
+
+User = get_user_model()
 
 
 class CustomUserViewSet(UserViewSet):
@@ -22,8 +31,6 @@ class CustomUserViewSet(UserViewSet):
     def subscribe(self, request, id=None):
         follower = request.user
         followee = get_object_or_404(User, id=id)
-        if follower == followee:
-            raise serializers.ValidationError('Нельзя подписаться на себя')
 
         data = {
             'follower': follower.id,
@@ -59,6 +66,29 @@ class CustomUserViewSet(UserViewSet):
         return self.get_paginated_response(serializer.data)
 
 
+def delete_obj(model, pk):
+    obj = get_object_or_404(ShoppingList, recipe_id=pk)
+    obj.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def create_obj(serializer, request, pk):
+    recipe = get_object_or_404(Recipe, id=pk)
+    data = {
+        'user': request.user.id,
+        'recipe': recipe.id
+    }
+    serializer = serializer(
+        data=data, context={'request': request}
+    )
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(
+        RecipeMinifiedSerializer(recipe).data,
+        status=status.HTTP_201_CREATED
+    )
+
+
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
@@ -72,63 +102,30 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True, methods=['post'], permission_classes=[IsAuthenticated]
     )
     def favorite(self, request, pk=None):
-        recipe = get_object_or_404(Recipe, id=pk)
-        data = {
-            'user': request.user.id,
-            'recipe': recipe.id
-        }
-
-        serializer = BookmarkSerializer(
-            data=data, context={'request': request}
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(
-            RecipeMinifiedSerializer(recipe).data,
-            status=status.HTTP_201_CREATED
-        )
+        return create_obj(BookmarkSerializer, request, pk)
 
     @favorite.mapping.delete
     def delete_favorite(self, request, pk=None):
-        bookmark = get_object_or_404(Bookmark, recipe_id=pk)
-        bookmark.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return delete_obj(Bookmark, pk)
 
     @action(
         detail=True, methods=['post'], permission_classes=[IsAuthenticated]
     )
     def shopping_cart(self, request, pk=None):
-        recipe = get_object_or_404(Recipe, id=pk)
-        data = {
-            'user': request.user.id,
-            'recipe': recipe.id
-        }
-
-        serializer = ShoppingListSerializer(
-            data=data, context={'request': request}
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(
-            RecipeMinifiedSerializer(recipe).data,
-            status=status.HTTP_201_CREATED
-        )
+        return create_obj(ShoppingListSerializer, request, pk)
 
     @shopping_cart.mapping.delete
     def delete_shopping_cart(self, request, pk=None):
-        bookmark = get_object_or_404(ShoppingList, recipe_id=pk)
-        bookmark.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return delete_obj(ShoppingList, pk)
 
     @action(detail=False, permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
-        ingredients = Ingredient.objects\
-            .select_related('recipe_ingredients')\
-            .filter(recipes__shopping_list__user=request.user)\
-            .values('name', 'measurement_unit')\
-            .annotate(amount=Sum('recipe_ingredients__amount'))
+        ingredients = (Ingredient.objects
+                       .select_related('recipe_ingredients')
+                       .filter(recipes__shopping_list__user=request.user)
+                       .values('name', 'measurement_unit')
+                       .annotate(amount=Sum('recipe_ingredients__amount'))
+                       )
         shopping_list = []
         for ingredient in ingredients:
             shopping_list += [

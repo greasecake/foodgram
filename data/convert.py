@@ -12,5 +12,5 @@ with open('ingredients.json', 'r', encoding='utf-8') as input_file:
             'fields': el
         }]
 
-with open('ingredients_prepared.json', 'w', encoding='utf-8') as output_file:
+with open('../backend/foodgram/fixtures/ingredients_prepared.json', 'w', encoding='utf-8') as output_file:
     output_file.write(json.dumps(ingredients_prepared, ensure_ascii=False))

@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import *
+
+from .models import (Ingredient, Recipe, Tag,
+                     Follow, Bookmark, ShoppingList)
 
 
 @admin.register(Ingredient)
@@ -25,20 +27,14 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Follow)
 class FollowAdmin(admin.ModelAdmin):
-    class Meta:
-        model = Follow
-        list_display = ('follower', 'followee',)
+    list_display = ('follower', 'followee',)
 
 
 @admin.register(Bookmark)
 class BookmarkAdmin(admin.ModelAdmin):
-    class Meta:
-        model = Bookmark
-        list_display = ('user', 'recipe',)
+    list_display = ('user', 'recipe',)
 
 
 @admin.register(ShoppingList)
 class ShoppingListAdmin(admin.ModelAdmin):
-    class Meta:
-        model = ShoppingList
-        list_display = ('user', 'recipe',)
+    list_display = ('user', 'recipe',)

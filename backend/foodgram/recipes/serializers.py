@@ -1,9 +1,11 @@
+from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from djoser.serializers import UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
-from .models import *
+from .models import (Ingredient, Recipe, RecipeIngredient,
+                     Tag, Follow, Bookmark, ShoppingList)
 
 
 User = get_user_model()
@@ -91,7 +93,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         ).exists()
 
     def validate(self, attrs):
-        ingredients = self.initial_data.get('ingredients')
+        print(attrs)
+        ingredients = attrs.get('ingredients')
         unique_ids = set()
         for ingredient in ingredients:
             if ingredient.get('id') in unique_ids:
@@ -103,13 +106,27 @@ class RecipeSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     'Количество должно быть больше 0'
                 )
-        attrs['ingredients'] = ingredients
+
+        tag_ids = attrs.get('tags')
+        for tag_id in tag_ids:
+            if not Tag.objects.filter(id=tag_id).exists():
+                raise serializers.ValidationError(
+                    'Указан несуществующий тег'
+                )
+
+        cooking_time = attrs.get('cooking_time')
+        if cooking_time <= 0:
+            raise serializers.ValidationError(
+                'Время приготовления должно быть больше 0'
+            )
+
         return attrs
 
     def create(self, validated_data):
+        tag_ids = validated_data.pop('tags')
         ingredients = validated_data.pop('ingredients')
         recipe = Recipe.objects.create(**validated_data)
-        for tag_id in self.initial_data.get('tags'):
+        for tag_id in tag_ids:
             recipe.tags.add(get_object_or_404(Tag, id=tag_id))
 
         for ingredient in ingredients:
@@ -118,13 +135,17 @@ class RecipeSerializer(serializers.ModelSerializer):
                 ingredient_id=ingredient.get('id'),
                 amount=ingredient.get('amount')
             )
+
         return recipe
 
     def update(self, instance, validated_data):
+        tag_ids = validated_data.pop('tags')
         RecipeIngredient.objects.filter(recipe=instance).delete()
 
-        for tag_id in self.initial_data.get('tags'):
-            instance.tags.add(get_object_or_404(Tag, id=tag_id))
+        if tag_ids:
+            instance.tags = set()
+            for tag_id in tag_ids:
+                instance.tags.add(get_object_or_404(Tag, id=tag_id))
 
         for ingredient in validated_data.pop('ingredients'):
             RecipeIngredient.objects.create(
@@ -151,6 +172,20 @@ class FollowSerializer(serializers.ModelSerializer):
     class Meta:
         model = Follow
         fields = ('follower', 'followee',)
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=model.objects.all(),
+                fields=('follower', 'followee'),
+                message='Нельзя подписаться повторно'
+            )
+        ]
+
+    def validate(self, attrs):
+        follower = attrs.get('follower')
+        followee = attrs.get('followee')
+        if follower == followee:
+            raise serializers.ValidationError('Нельзя подписаться на себя')
+        return attrs
 
 
 class FolloweeSerializer(serializers.ModelSerializer):

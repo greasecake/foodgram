@@ -1,4 +1,5 @@
 import django_filters as filters
+from rest_framework import serializers
 
 from .models import Recipe, Ingredient
 
@@ -20,14 +21,22 @@ class RecipeFilter(filters.FilterSet):
     def filter_is_favorited(self, queryset, name, value):
         if value == '1':
             return queryset.filter(bookmarks__user=self.request.user)
-        if value == '0':
+        elif value == '0':
             return queryset.filter(bookmarks__user__isnull=True)
+        else:
+            raise serializers.ValidationError(
+                'Недопустимое значение параметра is_favorited'
+            )
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
         if value == '1':
             return queryset.filter(shopping_list__user=self.request.user)
-        if value == '0':
+        elif value == '0':
             return queryset.filter(shopping_list__user__isnull=True)
+        else:
+            raise serializers.ValidationError(
+                'Недопустимое значение параметра is_in_shopping_cart'
+            )
 
     class Meta:
         model = Recipe
