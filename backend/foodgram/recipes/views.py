@@ -16,7 +16,7 @@ from .serializers import (RecipeSerializer,
                           BookmarkSerializer, ShoppingListSerializer)
 
 from .models import (Ingredient, Recipe, Tag, Follow, Bookmark, ShoppingList)
-from .utils import CustomCreateDeleteObjSerializerMixin
+from .mixins import CustomCreateDeleteObjSerializerMixin
 
 User = get_user_model()
 
