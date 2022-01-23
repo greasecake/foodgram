@@ -1,12 +1,11 @@
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
 from djoser.serializers import UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
 from .models import (Ingredient, Recipe, RecipeIngredient,
                      Tag, Follow, Bookmark, ShoppingList)
-
+from .utils import recipe_add_tag_ingredient
 
 User = get_user_model()
 
@@ -93,7 +92,6 @@ class RecipeSerializer(serializers.ModelSerializer):
         ).exists()
 
     def validate(self, attrs):
-        print(attrs)
         ingredients = attrs.get('ingredients')
         unique_ids = set()
         for ingredient in ingredients:
@@ -126,33 +124,14 @@ class RecipeSerializer(serializers.ModelSerializer):
         tag_ids = validated_data.pop('tags')
         ingredients = validated_data.pop('ingredients')
         recipe = Recipe.objects.create(**validated_data)
-        for tag_id in tag_ids:
-            recipe.tags.add(get_object_or_404(Tag, id=tag_id))
-
-        for ingredient in ingredients:
-            RecipeIngredient.objects.create(
-                recipe=recipe,
-                ingredient_id=ingredient.get('id'),
-                amount=ingredient.get('amount')
-            )
-
+        recipe_add_tag_ingredient(recipe, tag_ids, ingredients)
         return recipe
 
     def update(self, instance, validated_data):
         tag_ids = validated_data.pop('tags')
+        ingredients = validated_data.pop('ingredients')
         RecipeIngredient.objects.filter(recipe=instance).delete()
-
-        if tag_ids:
-            instance.tags = set()
-            for tag_id in tag_ids:
-                instance.tags.add(get_object_or_404(Tag, id=tag_id))
-
-        for ingredient in validated_data.pop('ingredients'):
-            RecipeIngredient.objects.create(
-                recipe=instance,
-                ingredient_id=ingredient.get('id'),
-                amount=ingredient.get('amount')
-            )
+        recipe_add_tag_ingredient(instance, tag_ids, ingredients)
         return super().update(instance, validated_data)
 
 

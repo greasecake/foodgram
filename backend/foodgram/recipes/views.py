@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.http import HttpResponse
 from djoser.views import UserViewSet
-from rest_framework import viewsets, status, serializers
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
@@ -10,12 +10,13 @@ from rest_framework.response import Response
 
 from .filters import RecipeFilter, IngredientFilter
 from .permissions import IsOwnerOrAdminOrReadOnly
-from .serializers import (RecipeSerializer, RecipeMinifiedSerializer,
+from .serializers import (RecipeSerializer,
                           CustomUserSerializer, IngredientSerializer,
                           TagSerializer, FollowSerializer, FolloweeSerializer,
                           BookmarkSerializer, ShoppingListSerializer)
 
 from .models import (Ingredient, Recipe, Tag, Follow, Bookmark, ShoppingList)
+from .utils import CustomCreateDeleteObjSerializerMixin
 
 User = get_user_model()
 
@@ -66,30 +67,10 @@ class CustomUserViewSet(UserViewSet):
         return self.get_paginated_response(serializer.data)
 
 
-def delete_obj(model, pk):
-    obj = get_object_or_404(ShoppingList, recipe_id=pk)
-    obj.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-def create_obj(serializer, request, pk):
-    recipe = get_object_or_404(Recipe, id=pk)
-    data = {
-        'user': request.user.id,
-        'recipe': recipe.id
-    }
-    serializer = serializer(
-        data=data, context={'request': request}
-    )
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(
-        RecipeMinifiedSerializer(recipe).data,
-        status=status.HTTP_201_CREATED
-    )
-
-
-class RecipeViewSet(viewsets.ModelViewSet):
+class RecipeViewSet(
+                    viewsets.ModelViewSet,
+                    CustomCreateDeleteObjSerializerMixin
+):
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     filter_class = RecipeFilter
@@ -102,21 +83,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True, methods=['post'], permission_classes=[IsAuthenticated]
     )
     def favorite(self, request, pk=None):
-        return create_obj(BookmarkSerializer, request, pk)
+        return self.create_obj(BookmarkSerializer, request, pk)
 
     @favorite.mapping.delete
     def delete_favorite(self, request, pk=None):
-        return delete_obj(Bookmark, pk)
+        return self.delete_obj(Bookmark, pk)
 
     @action(
         detail=True, methods=['post'], permission_classes=[IsAuthenticated]
     )
     def shopping_cart(self, request, pk=None):
-        return create_obj(ShoppingListSerializer, request, pk)
+        return self.create_obj(ShoppingListSerializer, request, pk)
 
     @shopping_cart.mapping.delete
     def delete_shopping_cart(self, request, pk=None):
-        return delete_obj(ShoppingList, pk)
+        return self.delete_obj(ShoppingList, pk)
 
     @action(detail=False, permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
