@@ -43,7 +43,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS':
         'recipes.pagination.CustomPagination',
-    'PAGE_SIZE': 10
+    'PAGE_SIZE': 3
 }
 
 AUTH_USER_MODEL = 'users.CustomUser'
