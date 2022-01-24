@@ -92,7 +92,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         ).exists()
 
     def validate(self, attrs):
-        ingredients = attrs.get('ingredients')
+        ingredients = self.initial_data.get('ingredients')
         unique_ids = set()
         for ingredient in ingredients:
             if ingredient.get('id') in unique_ids:
@@ -104,13 +104,15 @@ class RecipeSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     'Количество должно быть больше 0'
                 )
+        attrs['ingredients'] = ingredients
 
-        tag_ids = attrs.get('tags')
+        tag_ids = self.initial_data.get('tags')
         for tag_id in tag_ids:
             if not Tag.objects.filter(id=tag_id).exists():
                 raise serializers.ValidationError(
                     'Указан несуществующий тег'
                 )
+        attrs['tags'] = tag_ids
 
         cooking_time = attrs.get('cooking_time')
         if cooking_time <= 0:
@@ -205,6 +207,13 @@ class BookmarkSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bookmark
         fields = ('user', 'recipe',)
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=model.objects.all(),
+                fields=('user', 'recipe'),
+                message='Рецепт уже в избранном пользователя'
+            )
+        ]
 
 
 class ShoppingListSerializer(serializers.ModelSerializer):
@@ -214,3 +223,10 @@ class ShoppingListSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShoppingList
         fields = ('user', 'recipe',)
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=model.objects.all(),
+                fields=('user', 'recipe'),
+                message='Рецепт уже в корзине пользователя'
+            )
+        ]

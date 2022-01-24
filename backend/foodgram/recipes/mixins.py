@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from .models import Recipe
 from .serializers import RecipeMinifiedSerializer
 
 
@@ -12,7 +13,7 @@ class CustomCreateDeleteObjSerializerMixin:
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def create_obj(self, serializer, request, pk):
-        recipe = get_object_or_404(serializer, id=pk)
+        recipe = get_object_or_404(Recipe, id=pk)
         data = {
             'user': request.user.id,
             'recipe': recipe.id
