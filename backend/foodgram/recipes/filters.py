@@ -1,6 +1,6 @@
 import django_filters as filters
 
-from .models import Recipe, Ingredient
+from .models import Recipe, Ingredient, User
 
 
 class RecipeFilter(filters.FilterSet):
@@ -8,7 +8,7 @@ class RecipeFilter(filters.FilterSet):
         field_name='tags__slug',
     )
     author = filters.ModelChoiceFilter(
-        queryset=Recipe.objects.all()
+        queryset=User.objects.all()
     )
     is_favorited = filters.CharFilter(
         method='filter_is_favorited'
