@@ -87,7 +87,7 @@ class RecipeViewSet(
 
     @favorite.mapping.delete
     def delete_favorite(self, request, pk=None):
-        return self.delete_obj(Bookmark, pk)
+        return self.delete_obj(Bookmark, request, pk)
 
     @action(
         detail=True, methods=['post'], permission_classes=[IsAuthenticated]
@@ -97,7 +97,7 @@ class RecipeViewSet(
 
     @shopping_cart.mapping.delete
     def delete_shopping_cart(self, request, pk=None):
-        return self.delete_obj(ShoppingList, pk)
+        return self.delete_obj(ShoppingList, request, pk)
 
     @action(detail=False, permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):

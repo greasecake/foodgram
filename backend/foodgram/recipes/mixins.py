@@ -7,8 +7,8 @@ from .serializers import RecipeMinifiedSerializer
 
 
 class CustomCreateDeleteObjSerializerMixin:
-    def delete_obj(self, model, pk):
-        obj = get_object_or_404(model, recipe_id=pk)
+    def delete_obj(self, model, request, pk):
+        obj = get_object_or_404(model, recipe_id=pk, user=request.user)
         obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
